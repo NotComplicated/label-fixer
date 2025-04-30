@@ -6,7 +6,7 @@ fn main() -> Result<(), Error> {
         return Err(Error::Other("must provide a file path"));
     };
 
-    let out_path = fix_label(path)?;
+    let out_path = fix_label(path, Source::Vinted)?;
 
     println!("{}", out_path.display());
 

@@ -27,7 +27,13 @@ impl fmt::Debug for Error {
     }
 }
 
-pub fn fix_label(label_path: impl AsRef<Path>) -> Result<PathBuf, Error> {
+#[derive(Debug, Clone)]
+pub enum Source {
+    Vinted,
+    Whatnot,
+}
+
+pub fn fix_label(label_path: impl AsRef<Path>, source: Source) -> Result<PathBuf, Error> {
     let label_path = label_path.as_ref();
     if label_path.extension() != Some(OsStr::new("pdf")) {
         return Err(Error::Other("must be a file ending in .pdf"));
@@ -47,16 +53,33 @@ pub fn fix_label(label_path: impl AsRef<Path>) -> Result<PathBuf, Error> {
     };
 
     let pdfium = Pdfium::default();
-    let first_page = pdfium
-        .load_pdf_from_file(label_path, None)?
-        .pages()
-        .first()?;
-    let label = first_page
-        .objects()
-        .first()?
-        .as_image_object()
-        .ok_or(Error::Other("failed to find label"))?
-        .get_raw_image()?;
+    let label = match source {
+        Source::Vinted => {
+            let first_page = pdfium
+                .load_pdf_from_file(label_path, None)?
+                .pages()
+                .first()?;
+            first_page
+                .objects()
+                .first()?
+                .as_image_object()
+                .ok_or(Error::Other("Failed to find label."))?
+                .get_raw_image()?
+        }
+        Source::Whatnot => {
+            let pdf = pdfium.load_pdf_from_file(label_path, None)?;
+            let second_page = pdf
+                .pages()
+                .iter()
+                .nth(1)
+                .ok_or(Error::Other("Couldn't find second page."))?;
+            let second_page_object = second_page.objects().first()?;
+            second_page_object
+                .as_image_object()
+                .ok_or(Error::Other("Failed to find label."))?
+                .get_raw_image()?
+        }
+    };
 
     let mut out_image = label
         .resize(

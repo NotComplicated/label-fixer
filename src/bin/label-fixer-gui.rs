@@ -13,7 +13,7 @@ use iced::{
     window, Application, Background, Color, Command, Element, Length, Rectangle, Renderer,
     Settings, Theme, Vector,
 };
-use label_fixer::fix_label;
+use label_fixer::{fix_label, Source};
 
 const SIZE: (u32, u32) = (600, 600);
 const MIN_SIZE: (u32, u32) = (200, 400);
@@ -35,7 +35,7 @@ fn main() -> iced::Result {
 
 #[derive(Debug, Clone)]
 enum Message {
-    Load,
+    Load(Source),
     Print(PathBuf),
 }
 
@@ -71,18 +71,18 @@ impl Application for App {
     }
 
     fn title(&self) -> String {
-        "Depop Label Fixer".into()
+        "Label Fixer".into()
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::Load => {
+            Message::Load(source) => {
                 match native_dialog::FileDialog::new()
                     .set_title("Open PDF")
                     .show_open_single_file()
                 {
                     Ok(Some(path)) => {
-                        match fix_label(path) {
+                        match fix_label(path, source) {
                             Ok(out_path) => {
                                 *self = Self::loaded(out_path);
                             }
@@ -138,7 +138,11 @@ impl Application for App {
                 .on_press(message)
         }
 
-        let open_button = pink_button("Open Label PDF", Message::Load);
+        let vinted_button = pink_button("Vinted", Message::Load(Source::Vinted));
+        let whatnot_button = pink_button("Whatnot", Message::Load(Source::Whatnot));
+
+        let button_space = || horizontal_space(20);
+
         let sep = widget::container("")
             .style(|_: &Theme| widget::container::Appearance {
                 border_width: 2.0,
@@ -152,8 +156,10 @@ impl Application for App {
             Self::Empty => {
                 let bottom_bar = row![
                     horizontal_space(Length::Fill),
-                    open_button,
-                    horizontal_space(Length::Fill)
+                    vinted_button,
+                    button_space(),
+                    whatnot_button,
+                    horizontal_space(Length::Fill),
                 ]
                 .padding(20);
 
@@ -170,8 +176,10 @@ impl Application for App {
             Self::Loaded(handle, out_path) => {
                 let bottom_bar = row![
                     horizontal_space(Length::Fill),
-                    open_button,
-                    horizontal_space(20),
+                    vinted_button,
+                    button_space(),
+                    whatnot_button,
+                    button_space(),
                     pink_button("Print Label", Message::Print(out_path.clone())),
                     horizontal_space(Length::Fill)
                 ]
